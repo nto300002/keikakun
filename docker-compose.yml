@@ -1,0 +1,38 @@
+version: '3.9'
+
+services:
+  # フロントエンドサービス (Next.js)
+  frontend:
+    build:
+      context: ./k_front  # frontサブモジュールのディレクトリを指定
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      # ホストのfrontディレクトリをコンテナの/appにマウント
+      - ./front:/app
+      # 以下のマウントで、不要な上書きを防ぎ、パフォーマンスを向上させる
+      - /app/node_modules
+      - /app/.next
+    environment:
+      # .env.localの内容をここに直接書くか、.envファイルから読み込ませる
+      # Docker Compose v2.20+では以下の書き方が推奨される
+      - NEXT_PUBLIC_SUPABASE_URL=${FRONTEND_NEXT_PUBLIC_SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${FRONTEND_NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    # ローカル開発用のホットリロードが有効なコマンド
+    command: npm run dev
+    # コンテナを起動し続けるための設定
+    tty: true
+    stdin_open: true
+
+  # バックエンドサービス (FastAPI)
+  backend:
+    build:
+      context: ./k_back   # backサブモジュールのディレクトリを指定
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000" # FastAPIは通常8000番で起動
+    volumes:
+      - ./back/app:/app/app
+    env_file:
+      - ./back/.env # バックエンド用の環境変数をファイルから読み込む
