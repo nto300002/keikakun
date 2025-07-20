@@ -431,3 +431,5 @@ keikakun_api/
 | **`python-multipart`**         | `^0.0.20`  | **ファイルアップロード**: FastAPIでファイルアップロード（`UploadFile`）を扱うために必要。                    |
 | **`pytest`**                   | `^8.4.1`   | **テストフレームワーク**: Pythonのデファクトスタンダードなテストフレームワーク。                               |
 | **`pytest-asyncio`**           | `^1.0.0`   | **非同期テスト**: `pytest`で`async def`のテストケースを実行するために必要。                           |
+
+-
