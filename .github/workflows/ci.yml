@@ -1,0 +1,121 @@
+name: CI for Keikakun App
+
+on:
+  pull_request:
+    branches:
+      - dev  # devブランチへのPull Requestがトリガー
+
+jobs:
+  # ----------------------------------------
+  # フロントエンドのテストジョブ
+  # ----------------------------------------
+  test-frontend:
+    runs-on: ubuntu-latest
+    
+    # 実行するコマンドのデフォルト作業ディレクトリを設定
+    defaults:
+      run:
+        working-directory: ./k_front
+
+    steps:
+      # ステップ1: 親リポジトリのコードをチェックアウト
+      - name: Checkout parent repository
+        uses: actions/checkout@v4
+        with:
+          # サブモジュールも一緒にチェックアウトするための設定
+          submodules: 'recursive'
+
+      # ステップ2: Node.js環境のセットアップ
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: 'front/.nvmrc'
+          cache: 'npm'
+          cache-dependency-path: front/package-lock.json
+
+      # ステップ3: 依存関係のインストール
+      - name: Install Frontend Dependencies
+        run: npm install
+
+      # ステップ4: ESLintによるコードスタイルのチェック
+      - name: Run ESLint
+        run: npm run lint
+
+      # ステップ5: Vitest/Jestによる単体・結合テストの実行
+      - name: Run Tests
+        run: npm test
+
+  # ----------------------------------------
+  # バックエンドのテストジョブ
+  # ----------------------------------------
+  test-backend:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./k_back
+
+    steps:
+      # ステップ1: 親リポジトリとサブモジュールのチェックアウト
+      - name: Checkout parent repository and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      # ステップ2: Python環境のセットアップ
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: 'back/.python-version'
+
+      # ステップ3: 依存関係のインストール
+      - name: Install Backend Dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      # ステップ4: Pytestによるテストの実行
+      - name: Run Pytest
+        env:
+          # テストに必要な環境変数をGitHub Secretsから読み込む
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: pytest
+
+  # ----------------------------------------------------  
+  # バックエンドのデプロイジョブ
+  # ----------------------------------------------------
+  deploy-backend:
+    # test-backendジョブが成功した後にのみ実行
+    needs: test-backend
+    # mainブランチへのpushイベントでのみ実行
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      # ステップ1: リポジトリとサブモジュールのチェックアウト
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+
+      # ステップ2: Google Cloudへの認証
+      # GitHub Secretsに保存したサービスアカウントキーを使って認証する
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # ステップ3: gcloud CLIのセットアップ
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+      # ステップ4: Cloud Runへデプロイ
+      # k_backディレクトリに移動し、Cloud Buildを使ってデプロイを実行する
+      - name: Deploy to Cloud Run using Cloud Build
+        working-directory: ./k_back
+        run: gcloud builds submit --config cloudbuild.yaml .
