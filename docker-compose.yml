@@ -35,4 +35,4 @@ services:
     volumes:
       - ./back/app:/app/app
     env_file:
-      - ./back/.env # バックエンド用の環境変数をファイルから読み込む
+      - ./k_back/.env # バックエンド用の環境変数をファイルから読み込む

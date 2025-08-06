@@ -28,3 +28,7 @@ jobs:
       - name: Deploy to Cloud Run using Cloud Build
         working-directory: ./k_back
         run: gcloud builds submit --config cloudbuild.yaml .
+      - name: Run Pytest
+        env:
+          TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+        run: pytest
